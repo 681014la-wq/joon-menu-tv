@@ -6,7 +6,7 @@ from menu_utils import find_local_image, img_to_base64
 
 MENU_JSON  = "menu.json"
 IMAGE_DIR  = "images"
-OUTPUT_HTML= "JooNs_Menu_TV.html"
+OUTPUT_HTML= "index.html"
 
 # 음식 관련 태그 (이 태그 → 스시 이미지 배경)
 FOOD_TAGS = {"food", "sushi", "chef", "health", "history", "salmon"}
