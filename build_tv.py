@@ -145,18 +145,10 @@ def find_keyword_bg(quote_en):
                 return matches
     return None
 
-def video_to_b64(path):
-    """MP4 파일을 data URI로 변환"""
-    with open(path, "rb") as f:
-        return "data:video/mp4;base64," + base64.b64encode(f.read()).decode()
-
 def build():
-    # 비디오 로드
-    video_b64_list = []
-    for vf in VIDEO_FILES:
-        if os.path.exists(vf):
-            video_b64_list.append(video_to_b64(vf))
-            print(f"Video loaded: {vf}")
+    # 비디오 파일명 리스트 (별도 파일로 로드)
+    video_src_list = [vf for vf in VIDEO_FILES if os.path.exists(vf)]
+    print(f"Video files: {len(video_src_list)}개")
 
     # 메뉴 로드
     with open(MENU_JSON, "r", encoding="utf-8") as f:
@@ -379,12 +371,12 @@ def build():
                 )
 
     # 비디오: 1번은 커버 바로 다음, 나머지는 중간중간 균등 배치 (2회 반복 = 6개)
-    if video_b64_list:
+    if video_src_list:
         video_slides = []
-        for vb64 in (video_b64_list * 2):
+        for vsrc in (video_src_list * 2):
             video_slides.append(
                 f'<div class="slide slide-video" data-accent="#C9A96E" data-atmos="#000000">'
-                f'<video class="vid" src="{vb64}" muted autoplay playsinline preload="auto"></video>'
+                f'<video class="vid" src="{vsrc}" muted autoplay playsinline preload="auto"></video>'
                 f'</div>'
             )
         # 첫 번째: 커버(index 0) 바로 다음
