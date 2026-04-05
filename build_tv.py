@@ -7,7 +7,7 @@ from menu_utils import find_local_image, img_to_base64
 MENU_JSON  = "menu.json"
 IMAGE_DIR  = "images"
 OUTPUT_HTML= "index.html"
-VIDEO_FILES= ["video_1.mp4", "video_2.mp4", "video_3.mp4"]
+# VIDEO_FILES= ["video_1.mp4", "video_2.mp4", "video_3.mp4"]  # 비활성 - Fire Stick 불안정
 
 # 음식 관련 태그 (이 태그 → 스시 이미지 배경)
 FOOD_TAGS = {"food", "sushi", "chef", "health", "history", "salmon"}
@@ -146,9 +146,8 @@ def find_keyword_bg(quote_en):
     return None
 
 def build():
-    # 비디오 파일명 리스트 (별도 파일로 로드)
-    video_src_list = [vf for vf in VIDEO_FILES if os.path.exists(vf)]
-    print(f"Video files: {len(video_src_list)}개")
+    # 비디오 비활성 (Fire Stick 불안정)
+    video_src_list = []
 
     # 메뉴 로드
     with open(MENU_JSON, "r", encoding="utf-8") as f:
