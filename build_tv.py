@@ -378,7 +378,7 @@ def build():
                     f'</div>'
                 )
 
-    # 비디오 슬라이드를 중간중간 균등 배치
+    # 비디오: 1번은 커버 바로 다음, 나머지는 중간중간 균등 배치
     if video_b64_list:
         video_slides = []
         for vb64 in video_b64_list:
@@ -387,10 +387,15 @@ def build():
                 f'<video class="vid" src="{vb64}" muted autoplay playsinline preload="auto"></video>'
                 f'</div>'
             )
-        gap = len(slides) // (len(video_slides) + 1)
-        for idx, vs in enumerate(video_slides):
-            pos = gap * (idx + 1) + idx
-            slides.insert(pos, vs)
+        # 첫 번째: 커버(index 0) 바로 다음
+        slides.insert(1, video_slides[0])
+        # 나머지: 균등 배치
+        rest = video_slides[1:]
+        if rest:
+            gap = (len(slides) - 2) // (len(rest) + 1)
+            for idx, vs in enumerate(rest):
+                pos = 2 + gap * (idx + 1) + idx
+                slides.insert(pos, vs)
 
     html = '''<!DOCTYPE html>
 <html lang="en">
