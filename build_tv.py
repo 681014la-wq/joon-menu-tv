@@ -7,6 +7,7 @@ from menu_utils import find_local_image, img_to_base64
 MENU_JSON  = "menu.json"
 IMAGE_DIR  = "images"
 OUTPUT_HTML= "index.html"
+VIDEO_FILES= ["video_1.mp4", "video_2.mp4", "video_3.mp4"]
 
 # 음식 관련 태그 (이 태그 → 스시 이미지 배경)
 FOOD_TAGS = {"food", "sushi", "chef", "health", "history", "salmon"}
@@ -144,7 +145,19 @@ def find_keyword_bg(quote_en):
                 return matches
     return None
 
+def video_to_b64(path):
+    """MP4 파일을 data URI로 변환"""
+    with open(path, "rb") as f:
+        return "data:video/mp4;base64," + base64.b64encode(f.read()).decode()
+
 def build():
+    # 비디오 로드
+    video_b64_list = []
+    for vf in VIDEO_FILES:
+        if os.path.exists(vf):
+            video_b64_list.append(video_to_b64(vf))
+            print(f"Video loaded: {vf}")
+
     # 메뉴 로드
     with open(MENU_JSON, "r", encoding="utf-8") as f:
         all_items = json.load(f)
@@ -365,6 +378,23 @@ def build():
                     f'</div>'
                 )
 
+    # 비디오 슬라이드를 균등 배치
+    if video_b64_list:
+        video_slides = []
+        for vb64 in video_b64_list:
+            video_slides.append(
+                f'<div class="slide slide-video" data-accent="#C9A96E" data-atmos="#000000">'
+                f'<video class="vid" src="{vb64}" muted playsinline preload="auto"></video>'
+                f'</div>'
+            )
+        # 균등 간격으로 삽입 (커버 슬라이드 이후부터)
+        gap = max(1, len(slides) // (len(video_slides) + 1))
+        for idx, vs in enumerate(video_slides):
+            pos = gap * (idx + 1)
+            if pos > len(slides):
+                pos = len(slides)
+            slides.insert(pos + idx, vs)  # idx 보정: 이전 삽입으로 밀린 만큼
+
     html = '''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -424,23 +454,42 @@ body{width:100vw;height:100vh;overflow:hidden;background:#060609;color:#F0EDE6;f
 .slide.active .extra-en{animation:fadeUp 1.2s ease 0.9s forwards;}
 .slide.active .extra-ko{animation:fadeUp 1.2s ease 1.3s forwards;}
 
+/* 비디오 슬라이드 */
+.slide-video{background:#000;justify-content:center;align-items:center;}
+.slide-video .vid{width:100vw;height:100vh;object-fit:cover;}
+
 </style>
 </head>
 <body>
 <div class="slideshow" id="ss">''' + "".join(slides) + '''</div>
 <script>
 const slides=document.querySelectorAll('.slide');
-let cur=0, t0=Date.now(), paused=false;
+let cur=0, t0=Date.now(), paused=false, videoPlaying=false;
+
+// 비디오 종료 시 다음 슬라이드
+document.querySelectorAll('.slide-video .vid').forEach(v=>{
+  v.addEventListener('ended',()=>{videoPlaying=false;show(cur+1);});
+});
+
 function show(i){
+  // 이전 비디오 정지
+  const prevVid=slides[cur].querySelector('.vid');
+  if(prevVid){prevVid.pause();prevVid.currentTime=0;}
+  videoPlaying=false;
+
   slides[cur].classList.remove('active');
   cur=(i+slides.length)%slides.length;
   slides[cur].classList.add('active');
   const s=slides[cur];
   document.body.style.background=s.dataset.atmos||'#060609';
   t0=Date.now();
+
+  // 비디오 슬라이드면 자동 재생
+  const vid=s.querySelector('.vid');
+  if(vid){videoPlaying=true;vid.currentTime=0;vid.play().catch(()=>{});}
 }
 function tick(){
-  if(!paused){
+  if(!paused && !videoPlaying){
     const s=slides[cur];
     const fast=s.classList.contains('slide-title')||s.classList.contains('slide-menu');
     const dur=fast?3000:10000;
