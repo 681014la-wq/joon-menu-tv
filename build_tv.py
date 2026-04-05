@@ -378,7 +378,7 @@ def build():
                     f'</div>'
                 )
 
-    # 비디오 슬라이드를 균등 배치
+    # 비디오 슬라이드를 중간중간 균등 배치
     if video_b64_list:
         video_slides = []
         for vb64 in video_b64_list:
@@ -387,13 +387,10 @@ def build():
                 f'<video class="vid" src="{vb64}" muted playsinline preload="auto"></video>'
                 f'</div>'
             )
-        # 균등 간격으로 삽입 (커버 슬라이드 이후부터)
-        gap = max(1, len(slides) // (len(video_slides) + 1))
+        gap = len(slides) // (len(video_slides) + 1)
         for idx, vs in enumerate(video_slides):
-            pos = gap * (idx + 1)
-            if pos > len(slides):
-                pos = len(slides)
-            slides.insert(pos + idx, vs)  # idx 보정: 이전 삽입으로 밀린 만큼
+            pos = gap * (idx + 1) + idx
+            slides.insert(pos, vs)
 
     html = '''<!DOCTYPE html>
 <html lang="en">
