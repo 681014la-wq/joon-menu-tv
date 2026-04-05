@@ -403,7 +403,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#060609;color:#F0EDE6;f
 
 /* 커버 & 타이틀 */
 .cover-wrap{text-align:center;}
-.cover-title{font-family:'Playfair Display';font-size:110px;letter-spacing:8px;color:#C9A96E;}
+.cover-title{font-family:'Playfair Display';font-size:clamp(50px,8vw,110px);letter-spacing:clamp(2px,0.5vw,8px);color:#C9A96E;}
 .cover-sub{font-size:22px;letter-spacing:18px;color:#C9A96E;opacity:0.8;margin-top:20px;margin-bottom:30px;}
 .cover-line{width:250px;height:1px;background:rgba(201,169,110,0.5);margin:0 auto 30px auto;}
 .cover-addr{font-size:15px;letter-spacing:5px;color:#C9A96E;font-weight:300;}
