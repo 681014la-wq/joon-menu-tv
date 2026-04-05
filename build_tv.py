@@ -7,7 +7,7 @@ from menu_utils import find_local_image, img_to_base64
 MENU_JSON  = "menu.json"
 IMAGE_DIR  = "images"
 OUTPUT_HTML= "index.html"
-# VIDEO_FILES= ["video_1.mp4", "video_2.mp4", "video_3.mp4"]  # 비활성 - Fire Stick 불안정
+VIDEO_FILES= ["video_1.mp4", "video_2.mp4", "video_3.mp4"]
 
 # 음식 관련 태그 (이 태그 → 스시 이미지 배경)
 FOOD_TAGS = {"food", "sushi", "chef", "health", "history", "salmon"}
@@ -146,8 +146,9 @@ def find_keyword_bg(quote_en):
     return None
 
 def build():
-    # 비디오 비활성 (Fire Stick 불안정)
-    video_src_list = []
+    # 비디오 파일명 리스트 (지연 로드 방식)
+    video_src_list = [vf for vf in VIDEO_FILES if os.path.exists(vf)]
+    print(f"Video files: {len(video_src_list)}개")
 
     # 메뉴 로드
     with open(MENU_JSON, "r", encoding="utf-8") as f:
@@ -374,8 +375,7 @@ def build():
         video_slides = []
         for vsrc in (video_src_list * 2):
             video_slides.append(
-                f'<div class="slide slide-video" data-accent="#C9A96E" data-atmos="#000000">'
-                f'<video class="vid" src="{vsrc}" muted autoplay playsinline preload="auto"></video>'
+                f'<div class="slide slide-video" data-accent="#C9A96E" data-atmos="#000000" data-video="{vsrc}">'
                 f'</div>'
             )
         # 첫 번째: 커버(index 0) 바로 다음
@@ -459,16 +459,14 @@ body{width:100vw;height:100vh;overflow:hidden;background:#060609;color:#F0EDE6;f
 const slides=document.querySelectorAll('.slide');
 let cur=0, t0=Date.now(), paused=false, videoPlaying=false;
 
-// 비디오 종료/에러 시 다음 슬라이드
-document.querySelectorAll('.slide-video .vid').forEach(v=>{
-  v.addEventListener('ended',()=>{videoPlaying=false;show(cur+1);});
-  v.addEventListener('error',()=>{videoPlaying=false;show(cur+1);});
-});
+function cleanupVideo(slide){
+  const v=slide.querySelector('video');
+  if(v){v.pause();v.removeAttribute('src');v.load();v.remove();}
+}
 
 function show(i){
-  // 이전 비디오 정지
-  const prevVid=slides[cur].querySelector('.vid');
-  if(prevVid){prevVid.pause();prevVid.currentTime=0;}
+  // 이전 비디오 제거 (메모리 해제)
+  cleanupVideo(slides[cur]);
   videoPlaying=false;
 
   slides[cur].classList.remove('active');
@@ -478,11 +476,18 @@ function show(i){
   document.body.style.background=s.dataset.atmos||'#060609';
   t0=Date.now();
 
-  // 비디오 슬라이드면 자동 재생
-  const vid=s.querySelector('.vid');
-  if(vid){
-    videoPlaying=true;vid.currentTime=0;
-    vid.play().catch(()=>{videoPlaying=false;t0=Date.now();});
+  // 비디오 슬라이드면 지연 로드 후 재생
+  const vsrc=s.dataset.video;
+  if(vsrc){
+    videoPlaying=true;
+    const v=document.createElement('video');
+    v.className='vid';
+    v.muted=true;v.playsInline=true;v.autoplay=true;
+    v.addEventListener('ended',()=>{cleanupVideo(s);videoPlaying=false;show(cur+1);});
+    v.addEventListener('error',()=>{cleanupVideo(s);videoPlaying=false;t0=Date.now();});
+    s.appendChild(v);
+    v.src=vsrc;
+    v.play().catch(()=>{cleanupVideo(s);videoPlaying=false;t0=Date.now();});
   }
 }
 function tick(){
