@@ -6,8 +6,11 @@ from menu_utils import find_local_image, img_to_base64
 
 MENU_JSON  = "menu.json"
 IMAGE_DIR  = "images"
+SIG_DIR    = "signature_images"
 OUTPUT_HTML= "index.html"
 VIDEO_FILES= ["video_1.mp4", "video_2.mp4", "video_3.mp4"]
+QR_GOOGLE  = "qr_google.png"
+QR_YELP    = "qr_yelp.png"
 
 # 음식 관련 태그 (이 태그 → 스시 이미지 배경)
 FOOD_TAGS = {"food", "sushi", "chef", "health", "history", "salmon"}
@@ -178,17 +181,21 @@ def build():
     random.shuffle(wisdom_list)
     print(f"명언 총: {len(wisdom_list)}개")
 
-    # Pixabay 스시 이미지를 음식 명언 배경으로 사용
-    sushi_bg_images = sorted([f for f in os.listdir(".") if f.startswith("bg_sushi_") and f.endswith(".jpg")])
-    if not sushi_bg_images:
-        # fallback: 메뉴 이미지 사용
-        sushi_bg_images = [os.path.join(IMAGE_DIR, f) for f in os.listdir(IMAGE_DIR)
-                           if f.lower().endswith('.jpg')]
+    # 배경 이미지 풀 확장: 시그니처 고화질 + 기존 배경 + 일반 메뉴 이미지
+    sig_bg    = [os.path.join(SIG_DIR, f) for f in os.listdir(SIG_DIR) if f.lower().endswith(".jpg")] if os.path.exists(SIG_DIR) else []
+    basic_bg  = sorted([f for f in os.listdir(".") if f.startswith("bg_sushi_") and f.endswith(".jpg")])
+    menu_bg   = [os.path.join(IMAGE_DIR, f) for f in os.listdir(IMAGE_DIR) if f.lower().endswith(".jpg")] if os.path.exists(IMAGE_DIR) else []
+    
+    # 전체 리스트 합치기 (고화질 우선 노출을 위해 순서 조정)
+    sushi_bg_images = sig_bg + basic_bg + menu_bg
     random.shuffle(sushi_bg_images)
+    
+    print(f"배경 이미지 풀 확장 완료: 총 {len(sushi_bg_images)}개 확보")
+    
     sushi_bg_idx = 0
     cat_counters = {}
     used_once = set()      # 초상화/카테고리 - 절대 재사용 금지
-    used_sushi = set()     # 스시 이미지 - 소진 시 리셋 허용
+    used_sushi = set()     # 스시 이미지 - 1사이클 소진 시 리셋
 
     # 배경 이미지 B64 캐시
     bg_cache = {}
@@ -196,6 +203,10 @@ def build():
         if path not in bg_cache:
             bg_cache[path] = to_b64(path)
         return bg_cache[path]
+
+    # QR 이미지 base64
+    qr_google_b64 = to_b64(QR_GOOGLE) if os.path.exists(QR_GOOGLE) else ""
+    qr_yelp_b64   = to_b64(QR_YELP) if os.path.exists(QR_YELP) else ""
 
     slides = []
     wisdom_idx = 0
@@ -242,6 +253,23 @@ def build():
             f'</div>'
             f'</div>'
         )
+
+    def make_qr_slide():
+        return (
+            '<div class="slide slide-qr" data-accent="#C9A96E" data-atmos="#0D0D18">'
+            '<div class="qr-content">'
+            '<div class="qr-tag">We Value Your Feedback</div>'
+            '<div class="qr-title">Thank You for Dining with Us!</div>'
+            '<div class="qr-divider"></div>'
+            '<div class="qr-tagline">placeholder</div>'
+            '<div class="qr-reward">One Free Drink &nbsp;&middot;&nbsp; or 10% Off Your Next Visit</div>'
+            '</div>'
+            f'<div class="qr-flyer qr-left"><img src="{qr_google_b64}" alt="Google QR"><div class="qr-flyer-label">Google</div></div>'
+            f'<div class="qr-flyer qr-right"><img src="{qr_yelp_b64}" alt="Yelp QR"><div class="qr-flyer-label">Yelp</div></div>'
+            '</div>'
+        )
+
+    qr_interval = 0  # 카테고리 카운터 (2개마다 QR 삽입)
 
     for cat, items in cats.items():
         accent = CAT_COLORS.get(cat.upper(), "#C9A96E")
@@ -325,7 +353,7 @@ def build():
                         bg_b64 = get_bg_b64(pick_sushi_bg())
                     col = FOOD_ACCENT
                 else:
-                    # 비음식 명언 → 인물 초상화 (1회만)
+                    # 비음식 명언 → 인물 초상화 (1회만 우선 사용)
                     bg_file = None
                     for k, v in WHO_TO_BG.items():
                         if k in who:
@@ -336,20 +364,10 @@ def build():
                         bg_b64 = get_bg_b64(bg_file)
                         col = PORTRAIT_COLORS.get(bg_file, FOOD_ACCENT)
                     else:
-                        # 인물 초상화가 없거나 이미 사용된 경우: 카테고리별 제너릭 배경 또는 공용 지혜 배경 사용
-                        if tag in CATEGORY_BG:
-                            cinfo = CATEGORY_BG[tag]
-                            bg_b64 = get_bg_b64(cinfo["file"])
-                            col = {"accent": cinfo["accent"], "atmos": cinfo["atmos"]}
-                        elif tag in ["philosophy", "wisdom", "success", "life"]:
-                            # 공용 지혜 배경 (학자 또는 젠 스타일)
-                            gen_file = "bg_scholar.png" if tag in ["philosophy", "wisdom"] else "bg_zen.png"
-                            bg_b64 = get_bg_b64(gen_file)
-                            col = PORTRAIT_COLORS.get(gen_file, FOOD_ACCENT)
-                        else:
-                            # 최후의 수단: 스시 배경
-                            bg_b64 = get_bg_b64(pick_sushi_bg())
-                            col = FOOD_ACCENT
+                        # ⚠️ 중요: 인물 초상화가 없거나 이미 사용된 경우, 절대 고정 이미지로 '돌려막기' 하지 않음
+                        # 120장 이상의 고화질 스시 사진 풀에서 순차적으로 하나씩 꺼내어 중복 없이 배치
+                        bg_b64 = get_bg_b64(pick_sushi_bg())
+                        col = FOOD_ACCENT
 
                 ac = col["accent"]
                 at = col["atmos"]
@@ -369,6 +387,15 @@ def build():
                     f'</div>'
                     f'</div>'
                 )
+
+        # 카테고리 2개마다 QR 슬라이드 삽입
+        qr_interval += 1
+        if qr_interval % 2 == 0 and qr_google_b64:
+            slides.append(make_qr_slide())
+
+    # 마지막에도 QR 슬라이드 추가
+    if qr_google_b64:
+        slides.append(make_qr_slide())
 
     # 비디오: 1번은 커버 바로 다음, 나머지는 중간중간 균등 배치 (2회 반복 = 6개)
     if video_src_list:
@@ -451,6 +478,41 @@ body{width:100vw;height:100vh;overflow:hidden;background:#060609;color:#F0EDE6;f
 .slide-video{background:#000;justify-content:center;align-items:center;overflow:hidden;}
 .slide-video .vid{max-width:85vw;max-height:85vh;width:auto;height:auto;object-fit:contain;display:block;margin:auto;}
 
+/* QR 리뷰 슬라이드 */
+.slide-qr{
+  background:radial-gradient(ellipse at 50% 40%,#0D0D18 0%,#000 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;overflow:hidden;
+}
+.qr-content{position:relative;z-index:20;display:flex;flex-direction:column;align-items:center;}
+.qr-tag{font-size:11px;letter-spacing:18px;color:#C9A96E;margin-bottom:20px;text-transform:uppercase;opacity:0;}
+.qr-title{font-family:'Playfair Display';font-size:clamp(40px,5.5vw,74px);color:#fff;margin-bottom:14px;opacity:0;}
+.qr-divider{width:220px;height:1px;background:linear-gradient(90deg,transparent,#C9A96E,transparent);margin:22px auto;opacity:0;}
+.qr-tagline{
+  font-size:clamp(28px,3.4vw,50px);color:rgba(240,237,230,0.92);
+  line-height:1.55;margin-bottom:22px;max-width:900px;
+  font-style:italic;font-family:'Cormorant Garamond','Playfair Display',serif;
+  text-shadow:0 2px 20px rgba(0,0,0,0.8);opacity:0;
+}
+.qr-reward{font-family:'Playfair Display';font-size:clamp(17px,2.1vw,28px);color:#C9A96E;opacity:0;}
+.qr-flyer{
+  position:absolute;background:#fff;border-radius:16px;padding:14px;
+  width:clamp(130px,13vw,190px);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  box-shadow:0 8px 40px rgba(0,0,0,0.7);z-index:5;
+  opacity:0;transition:opacity .6s ease;pointer-events:none;
+}
+.qr-left{left:3vw;top:50%;transform:translateY(-50%);}
+.qr-right{right:3vw;bottom:8vh;}
+.qr-flyer img{width:100%;display:block;border-radius:4px;}
+.qr-flyer-label{font-size:10px;letter-spacing:4px;color:#555;text-transform:uppercase;font-family:'Inter',sans-serif;}
+.slide-qr.active .qr-flyer{opacity:1;}
+.slide.active .qr-tag{animation:fadeUp .8s ease .2s both;}
+.slide.active .qr-title{animation:fadeUp 1s ease .4s both;}
+.slide.active .qr-divider{animation:fadeUp .7s ease .7s both;}
+.slide.active .qr-tagline{animation:fadeUp .8s ease .9s both;}
+.slide.active .qr-reward{animation:fadeUp .8s ease 1.1s both;}
+
 </style>
 </head>
 <body>
@@ -513,6 +575,74 @@ document.addEventListener('keydown',e=>{
   }
 });
 document.addEventListener('click',()=>show(cur+1));
+
+const QR_TAGLINES = [
+  "You chose us for your evening. We will never forget that.",
+  "Thank you for letting us be part of your story tonight.",
+  "Every guest who walks through our door is a gift.",
+  "Tonight meant everything to us. Thank you for being here.",
+  "You didn't just dine with us \\u2014 you made our day.",
+  "We are grateful for every moment you spent with us.",
+  "Your presence at our table is the highest honor we know.",
+  "From our kitchen to your heart \\u2014 thank you.",
+  "You trusted us with your evening. We don't take that lightly.",
+  "Tonight, you were not just a guest. You were family.",
+  "Every roll was made with love \\u2014 your words help us share that love further.",
+  "We didn't just serve food. We gave you our very best.",
+  "Behind every bite is a chef who cares deeply about you.",
+  "Our chefs wake up every morning thinking about moments like tonight.",
+  "Each roll is a promise \\u2014 that we gave everything we had.",
+  "We put our soul into every dish. Hope you felt it.",
+  "Great sushi is not made. It is cared for, one roll at a time.",
+  "Perfection is our daily pursuit. Tonight was no exception.",
+  "Every ingredient was chosen with you in mind.",
+  "We cook as if our family were sitting at your table.",
+  "Your kindness tonight fuels our passion tomorrow.",
+  "Your review is the reason we come back better every day.",
+  "A few words from you can inspire a thousand better rolls.",
+  "Your honest words make us stronger chefs and kinder people.",
+  "We grow because guests like you believe in us.",
+  "Your feedback is the compass that guides us forward.",
+  "We read every review. Every single one.",
+  "One kind word from you echoes through our entire team.",
+  "You help us become the restaurant we always dreamed of being.",
+  "Your voice shapes the future of JooN's Sushi.",
+  "Good food fades. But the feeling of a great meal \\u2014 that stays.",
+  "We hope tonight gave you a memory worth keeping.",
+  "A great meal shared is a story worth telling.",
+  "The best table in the house was always yours.",
+  "We live for the moments when food becomes a memory.",
+  "If tonight made you smile, our work here is done.",
+  "Some evenings are just meals. We hope yours was more.",
+  "Tonight, we cooked for you like you were the only guest.",
+  "The joy on your face \\u2014 that is why we do this.",
+  "We hope this was a night you will tell someone about.",
+  "Every review helps another family discover their new favorite spot.",
+  "Your words bring new friends to our table.",
+  "Help us share this love with the whole community.",
+  "Together, we build something worth coming back to.",
+  "Your review is a gift to every guest who comes after you.",
+  "What you say next could change someone's night.",
+  "One review. One family. One unforgettable first visit.",
+  "You are part of the JooN's Sushi story now.",
+  "We are nothing without the community that lifts us up.",
+  "Thank you \\u2014 from JooN, from our chefs, from all of us."
+];
+let qrTaglineQueue=[...QR_TAGLINES].sort(()=>Math.random()-0.5);
+function nextQRTagline(){if(!qrTaglineQueue.length)qrTaglineQueue=[...QR_TAGLINES].sort(()=>Math.random()-0.5);return qrTaglineQueue.pop();}
+
+const origShow=show;
+show=function(i){
+  origShow(i);
+  const s=slides[cur];
+  if(s.classList.contains('slide-qr')){
+    const tl=s.querySelector('.qr-tagline');
+    if(tl)tl.textContent=nextQRTagline();
+  }
+};
+// init first QR
+document.querySelectorAll('.slide-qr .qr-tagline').forEach(el=>el.textContent=nextQRTagline());
+
 tick();
 </script>
 </body>
