@@ -8,6 +8,8 @@ MENU_JSON  = "menu.json"
 IMAGE_DIR  = "images"
 SIG_DIR    = "signature_images"
 OUTPUT_HTML= "index.html"
+TV2_BASE   = "https://681014la-wq.github.io/joons-tv-2/signature_images/"
+TV1_BASE   = "https://681014la-wq.github.io/joons-tv-1/"
 VIDEO_FILES= ["video_1.mp4", "video_2.mp4", "video_3.mp4"]
 QR_GOOGLE  = "qr_google.png"
 QR_YELP    = "qr_yelp.png"
@@ -157,12 +159,42 @@ def build():
     with open(MENU_JSON, "r", encoding="utf-8") as f:
         all_items = json.load(f)
     
+    # signature_images에 있는 고화질 파일 목록
+    from urllib.parse import quote
+    sig_files = {}
+    if os.path.exists(SIG_DIR):
+        for f in os.listdir(SIG_DIR):
+            if f.lower().endswith(".jpg"):
+                name_key = os.path.splitext(f)[0].lower()
+                sig_files[name_key] = f
+
+    def find_sig_match(name):
+        """메뉴 이름에서 Roll/Sushi/Sashimi 등 접미사 제거 후 매칭"""
+        n = name.lower()
+        if n in sig_files:
+            return sig_files[n]
+        for suffix in [" roll", " sushi", " sashimi", " plate", " don"]:
+            stripped = n.replace(suffix, "").strip()
+            if stripped in sig_files:
+                return sig_files[stripped]
+        return None
+
     cats = {}
+    sig_count = 0
     for item in all_items:
-        img_path = find_menu_img(item["name"])
-        if img_path:
-            item["img_b64"] = to_b64(img_path)
-            cats.setdefault(item["category"].strip(), []).append(item)
+        name = item["name"]
+        sig_match = find_sig_match(name)
+        if sig_match:
+            item["img_src"] = TV2_BASE + quote(sig_match)
+            sig_count += 1
+        else:
+            img_path = find_menu_img(name)
+            if img_path:
+                item["img_src"] = to_b64(img_path)
+            else:
+                continue
+        cats.setdefault(item["category"].strip(), []).append(item)
+    print(f"고화질 URL 매칭: {sig_count}개 / 총 {len(all_items)}개")
     
     # 명언 로드 - 메인 + 하위 폴더 전체
     wisdom_list = []
@@ -197,25 +229,29 @@ def build():
     used_once = set()      # 초상화/카테고리 - 절대 재사용 금지
     used_sushi = set()     # 스시 이미지 - 1사이클 소진 시 리셋
 
-    # 배경 이미지 B64 캐시
+    # 배경 이미지 → URL 참조 (TV1 레포에서 로딩)
     bg_cache = {}
-    def get_bg_b64(path):
+    def get_bg_url(path):
         if path not in bg_cache:
-            bg_cache[path] = to_b64(path)
+            fname = os.path.basename(path)
+            if path.startswith(SIG_DIR):
+                bg_cache[path] = TV2_BASE + quote(fname)
+            else:
+                bg_cache[path] = TV1_BASE + quote(fname)
         return bg_cache[path]
 
-    # QR 이미지 base64
-    qr_google_b64 = to_b64(QR_GOOGLE) if os.path.exists(QR_GOOGLE) else ""
-    qr_yelp_b64   = to_b64(QR_YELP) if os.path.exists(QR_YELP) else ""
+    # QR 이미지 URL
+    qr_google_b64 = TV1_BASE + quote(QR_GOOGLE) if os.path.exists(QR_GOOGLE) else ""
+    qr_yelp_b64   = TV1_BASE + quote(QR_YELP) if os.path.exists(QR_YELP) else ""
 
     slides = []
     wisdom_idx = 0
     web_idx = 0
 
     # 커버 슬라이드
-    cover_b64  = to_b64("bg_cover.png")
-    title_b64  = to_b64("bg_title.png")
-    menu_b64   = to_b64("bg_menu.png")
+    cover_b64  = TV1_BASE + quote("bg_cover.png")
+    title_b64  = TV1_BASE + quote("bg_title.png")
+    menu_b64   = TV1_BASE + quote("bg_menu.png")
 
     slides.append(
         f'<div class="slide slide-title active" data-accent="#C9A96E" data-atmos="#060609"'
@@ -236,7 +272,7 @@ def build():
         wisdom_list.remove(d)
         bg_path = sushi_bg_images[sushi_bg_idx % len(sushi_bg_images)]
         sushi_bg_idx += 1
-        bg_b64 = get_bg_b64(bg_path)
+        bg_b64 = get_bg_url(bg_path)
         ac, at = FOOD_ACCENT["accent"], FOOD_ACCENT["atmos"]
         slides.append(
             f'<div class="slide slide-extra" data-accent="{ac}" data-atmos="{at}">'
@@ -292,7 +328,7 @@ def build():
             for it in chunk:
                 cards_html += (
                     f'<div class="card" style="border-color:{accent}55">'
-                    f'<div class="card-img"><img src="{it["img_b64"]}" alt="{it["name"]}"></div>'
+                    f'<div class="card-img"><img src="{it["img_src"]}" alt="{it["name"]}"></div>'
                     f'<div class="card-body">'
                     f'<div class="card-name">{it["name"]}</div>'
                     f'<div class="card-price" style="color:{accent}">{it["price"]}</div>'
@@ -334,9 +370,9 @@ def build():
                     cat_file = cat_info["file"]
                     if cat_file not in used_once and os.path.exists(cat_file):
                         used_once.add(cat_file)
-                        bg_b64 = get_bg_b64(cat_file)
+                        bg_b64 = get_bg_url(cat_file)
                     else:
-                        bg_b64 = get_bg_b64(pick_sushi_bg())
+                        bg_b64 = get_bg_url(pick_sushi_bg())
                     col = {"accent": cat_info["accent"], "atmos": cat_info["atmos"]}
                 elif tag in FOOD_TAGS:
                     # 음식 명언 → 키워드 매칭 우선
@@ -346,11 +382,11 @@ def build():
                         for img in kw_imgs:
                             if img not in used_once:
                                 used_once.add(img)
-                                bg_b64 = get_bg_b64(img)
+                                bg_b64 = get_bg_url(img)
                                 picked = True
                                 break
                     if not picked:
-                        bg_b64 = get_bg_b64(pick_sushi_bg())
+                        bg_b64 = get_bg_url(pick_sushi_bg())
                     col = FOOD_ACCENT
                 else:
                     # 비음식 명언 → 인물 초상화 (1회만 우선 사용)
@@ -361,12 +397,12 @@ def build():
 
                     if bg_file and os.path.exists(bg_file) and bg_file not in used_once:
                         used_once.add(bg_file)
-                        bg_b64 = get_bg_b64(bg_file)
+                        bg_b64 = get_bg_url(bg_file)
                         col = PORTRAIT_COLORS.get(bg_file, FOOD_ACCENT)
                     else:
                         # ⚠️ 중요: 인물 초상화가 없거나 이미 사용된 경우, 절대 고정 이미지로 '돌려막기' 하지 않음
                         # 120장 이상의 고화질 스시 사진 풀에서 순차적으로 하나씩 꺼내어 중복 없이 배치
-                        bg_b64 = get_bg_b64(pick_sushi_bg())
+                        bg_b64 = get_bg_url(pick_sushi_bg())
                         col = FOOD_ACCENT
 
                 ac = col["accent"]
