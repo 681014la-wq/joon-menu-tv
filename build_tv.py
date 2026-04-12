@@ -168,13 +168,18 @@ def build():
                 name_key = os.path.splitext(f)[0].lower()
                 sig_files[name_key] = f
 
+    # 고화질 매칭 제외 목록 (사진 불일치)
+    SIG_EXCLUDE = {"spicy california"}
+
     def find_sig_match(name):
         """메뉴 이름에서 Roll/Sushi/Sashimi 등 접미사 제거 후 매칭"""
         n = name.lower()
-        if n in sig_files:
+        if n in sig_files and n not in SIG_EXCLUDE:
             return sig_files[n]
         for suffix in [" roll", " sushi", " sashimi", " plate", " don"]:
             stripped = n.replace(suffix, "").strip()
+            if stripped in SIG_EXCLUDE:
+                return None
             if stripped in sig_files:
                 return sig_files[stripped]
         return None
