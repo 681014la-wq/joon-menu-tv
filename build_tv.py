@@ -150,6 +150,71 @@ def find_keyword_bg(quote_en):
                 return matches
     return None
 
+
+# ─── TV3 promo slides (embedded as native slides, every 5 main slides) ───
+TV3_LOGO_URL = "https://681014la-wq.github.io/joons-tv-3/joon_logo.png"
+
+_TV3_SOJU_SVG = (
+    '<g stroke="#000" stroke-width="3" stroke-linejoin="round">'
+    '<rect x="25" y="2" width="10" height="22" fill="#1A6B33"/>'
+    '<path d="M22,24 L38,24 L40,38 L20,38 Z" fill="#1A6B33"/>'
+    '<rect x="8" y="38" width="44" height="118" rx="6" fill="#2EA84F"/>'
+    '<rect x="10" y="68" width="40" height="44" fill="#FFF"/>'
+    '<text x="30" y="98" font-family="Bangers" font-size="20" fill="#E63946" text-anchor="middle">SOJU</text>'
+    '</g>'
+)
+
+def _tv3_burst_block(title, huge, sub):
+    return (
+        '<div class="burst">'
+        '<svg class="burst-svg" viewBox="-20 -20 340 190" preserveAspectRatio="xMidYMid meet"></svg>'
+        '<div class="burst-text">'
+        f'<div class="burst-title">{title}</div>'
+        f'<div class="burst-huge">{huge}</div>'
+        f'<div class="burst-sub">{sub}</div>'
+        '</div></div>'
+    )
+
+def _tv3_promo_slide(tv3_class, title, huge, sub, with_soju=False):
+    soju_html = ""
+    if with_soju:
+        soju_html = "".join(
+            f'<svg class="soju fly{i}" viewBox="0 0 60 160">{_TV3_SOJU_SVG}</svg>'
+            for i in range(1, 9)
+        )
+    return (
+        f'<div class="slide tv3-scope {tv3_class}">'
+        '<div class="bg-halftone"></div>'
+        '<div class="speed-lines"></div>'
+        f'{soju_html}'
+        '<div class="crazy-banner">BOSS GONE CRAZY!<span class="line2">WHAT IS THIS PRICE?!</span></div>'
+        '<div class="real-stamp">FOR<br>REAL?!</div>'
+        '<div class="bubble b1"></div><div class="bubble b2"></div>'
+        '<div class="bubble b3"></div><div class="bubble b4"></div>'
+        + _tv3_burst_block(title, huge, sub) +
+        '</div>'
+    )
+
+def _tv3_logo_slide():
+    return (
+        '<div class="slide tv3-scope tv3-logo">'
+        '<div class="bg-halftone"></div>'
+        f'<img class="joon-img" src="{TV3_LOGO_URL}" alt="JooN\'s Sushi">'
+        '</div>'
+    )
+
+def make_tv3_promo_pool():
+    """6개 TV3 프로모 슬라이드 (cycling pool)"""
+    return [
+        _tv3_promo_slide("tv3-1", "TV AD!", "50% OFF", "LIMITED TIME"),
+        _tv3_promo_slide("tv3-2", "BEER!", "2 FOR 1", "ALL NIGHT"),
+        _tv3_logo_slide(),
+        _tv3_promo_slide("tv3-3", "SOJU!", "50% OFF", "ICE COLD", with_soju=True),
+        _tv3_logo_slide(),
+        _tv3_promo_slide("tv3-4", "ALL YOU CAN EAT", "100 ITEMS", "ONE PRICE"),
+    ]
+
+
 def build():
     # 비디오 파일명 리스트 (지연 로드 방식)
     video_src_list = [vf for vf in VIDEO_FILES if os.path.exists(vf)]
@@ -451,13 +516,23 @@ def build():
                 pos = 2 + gap * (idx + 1) + idx
                 slides.insert(pos, vs)
 
+    # TV3 promo 슬라이드: 5장마다 1장씩 cycling
+    tv3_pool = make_tv3_promo_pool()
+    new_slides = []
+    tv3_idx = 0
+    for i, s in enumerate(slides):
+        new_slides.append(s)
+        if (i + 1) % 5 == 0:
+            new_slides.append(tv3_pool[tv3_idx % len(tv3_pool)])
+            tv3_idx += 1
+    slides = new_slides
 
     html = '''<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>JooN's Sushi Menu</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Cormorant+Garamond:wght@700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Cormorant+Garamond:wght@700&family=Inter:wght@300;400&family=Bangers&family=Luckiest+Guy&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{width:100vw;height:100vh;overflow:hidden;background:#060609;color:#F0EDE6;font-family:'Inter',sans-serif;cursor:none;}
@@ -550,12 +625,92 @@ body{width:100vw;height:100vh;overflow:hidden;background:#060609;color:#F0EDE6;f
 .slide.active .qr-tagline{animation:fadeUp .8s ease .9s both;}
 .slide.active .qr-reward{animation:fadeUp .8s ease 1.1s both;}
 
+/* ==================== TV3 PROMO SLIDES (scoped via .tv3-scope) ==================== */
+.tv3-scope{font-family:'Bangers',cursive;gap:24px;}
+.tv3-scope .bg-halftone{position:absolute;inset:0;background-image:radial-gradient(circle,#222 1.5px,transparent 1.6px),radial-gradient(circle,#222 1.5px,transparent 1.6px);background-size:18px 18px,18px 18px;background-position:0 0,9px 9px;opacity:0.18;}
+.tv3-scope .speed-lines{position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 50%,transparent 0deg,rgba(0,0,0,0.55) 0.6deg,transparent 1.2deg,transparent 6deg);mask-image:radial-gradient(circle at center,transparent 25%,#000 55%,transparent 90%);-webkit-mask-image:radial-gradient(circle at center,transparent 25%,#000 55%,transparent 90%);animation:tv3spin 14s linear infinite;}
+@keyframes tv3spin{to{transform:rotate(360deg);}}
+.tv3-scope .burst{position:relative;width:min(44vw,700px);aspect-ratio:2/1;display:flex;align-items:center;justify-content:center;flex-direction:column;animation:tv3bounce 0.55s cubic-bezier(.34,1.8,.64,1) infinite alternate;}
+.tv3-scope .burst svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(8px 10px 0 #000);}
+.tv3-scope .burst-text{position:relative;z-index:5;text-align:center;line-height:0.95;}
+@keyframes tv3bounce{from{transform:scale(0.94) rotate(-3deg);}to{transform:scale(1.06) rotate(3deg);}}
+.tv3-scope .burst-title{font-family:'Luckiest Guy',cursive;font-size:clamp(40px,7vmin,110px);color:#FFF;text-shadow:-5px -5px 0 #000,5px -5px 0 #000,-5px 5px 0 #000,5px 5px 0 #000,-5px 0 0 #000,5px 0 0 #000,0 -5px 0 #000,0 5px 0 #000,12px 12px 0 #000;letter-spacing:4px;transform:rotate(-4deg);}
+.tv3-scope .burst-huge{font-family:'Luckiest Guy',cursive;font-size:clamp(80px,14vmin,220px);color:#FFEB3B;text-shadow:-7px -7px 0 #000,7px -7px 0 #000,-7px 7px 0 #000,7px 7px 0 #000,-7px 0 0 #000,7px 0 0 #000,0 -7px 0 #000,0 7px 0 #000,14px 14px 0 #000;margin-top:10px;transform:rotate(2deg);}
+.tv3-scope .burst-sub{display:inline-block;font-family:'Luckiest Guy',cursive;font-size:clamp(16px,2.2vmin,34px);color:#000;background:#FFEB3B;padding:6px 20px;border:4px solid #000;border-radius:28px;letter-spacing:3px;transform:rotate(-2deg);margin-top:18px;box-shadow:5px 5px 0 #000;}
+.tv3-scope.tv3-1{background:#FFD93D;}
+.tv3-scope.tv3-1 .burst svg .burst-fill{fill:#E63946;}
+.tv3-scope.tv3-2{background:#FFF;}
+.tv3-scope.tv3-2 .burst svg .burst-fill{fill:#1D9BF0;}
+.tv3-scope.tv3-2 .burst-title{color:#E63946;font-size:clamp(56px,10vmin,160px);}
+.tv3-scope.tv3-3{background:#0F2E1D;}
+.tv3-scope.tv3-3 .bg-halftone{opacity:0.30;}
+.tv3-scope.tv3-3 .burst svg .burst-fill{fill:#2EA84F;}
+.tv3-scope.tv3-3 .burst-title{color:#1D9BF0;font-size:clamp(56px,10vmin,160px);}
+.tv3-scope.tv3-3 .burst-huge{color:#E63946;}
+.tv3-scope.tv3-4{background:#1a1a1a;}
+.tv3-scope.tv3-4 .bg-halftone{opacity:0.25;background-image:radial-gradient(circle,#FFEB3B 1.5px,transparent 1.6px),radial-gradient(circle,#FFEB3B 1.5px,transparent 1.6px);}
+.tv3-scope.tv3-4 .burst svg .burst-fill{fill:#FF6B00;}
+.tv3-scope.tv3-4 .burst-title{color:#FFF;text-shadow:6px 6px 0 #000,8px 8px 0 #C70000;}
+.tv3-scope.tv3-4 .burst-huge{color:#FFEB3B;text-shadow:7px 7px 0 #000,10px 10px 0 #C70000;}
+.tv3-scope.tv3-logo{background:#FFF;}
+.tv3-scope.tv3-logo .bg-halftone{opacity:0.10;}
+.tv3-scope.tv3-logo .joon-img{position:relative;z-index:5;max-width:80vw;max-height:75vh;width:auto;height:auto;mix-blend-mode:multiply;animation:tv3logoBounce 2s ease-in-out infinite alternate;}
+@keyframes tv3logoBounce{from{transform:scale(0.97) rotate(-1deg);}to{transform:scale(1.03) rotate(1deg);}}
+.tv3-scope .sushi-roll{position:absolute;width:clamp(70px,10vmin,150px);z-index:50;pointer-events:none;filter:drop-shadow(5px 7px 0 #000);top:0;left:0;}
+.tv3-scope .sushi-roll svg{width:100%;height:auto;display:block;}
+.tv3-scope .sushi-roll.sf1{animation:tv3sfly1 7s linear infinite;}
+.tv3-scope .sushi-roll.sf2{animation:tv3sfly2 8s linear infinite;animation-delay:-2s;}
+.tv3-scope .sushi-roll.sf3{animation:tv3sfly3 6.5s linear infinite;animation-delay:-4s;}
+.tv3-scope .sushi-roll.sf4{animation:tv3sfly4 7.5s linear infinite;animation-delay:-1.5s;}
+.tv3-scope .sushi-roll.sf5{animation:tv3sfly5 8.5s linear infinite;animation-delay:-3s;}
+.tv3-scope .sushi-roll.sf6{animation:tv3sfly6 6s linear infinite;animation-delay:-5s;}
+.tv3-scope .sushi-roll.sf7{animation:tv3sfly7 7.2s linear infinite;animation-delay:-2.5s;}
+.tv3-scope .sushi-roll.sf8{animation:tv3sfly8 8.2s linear infinite;animation-delay:-4.5s;}
+.tv3-scope .sushi-roll.sf9{animation:tv3sfly1 7.8s linear infinite;animation-delay:-3.5s;}
+.tv3-scope .sushi-roll.sf10{animation:tv3sfly3 7.3s linear infinite;animation-delay:-1s;}
+@keyframes tv3sfly1{0%{transform:translate(-15vw,80vh) rotate(0deg);}100%{transform:translate(115vw,-15vh) rotate(540deg);}}
+@keyframes tv3sfly2{0%{transform:translate(115vw,75vh) rotate(0deg);}100%{transform:translate(-18vw,-12vh) rotate(-720deg);}}
+@keyframes tv3sfly3{0%{transform:translate(-12vw,-15vh) rotate(0deg) scale(0.8);}100%{transform:translate(115vw,90vh) rotate(720deg) scale(0.8);}}
+@keyframes tv3sfly4{0%{transform:translate(110vw,15vh) rotate(0deg) scale(1.1);}100%{transform:translate(-15vw,80vh) rotate(-540deg) scale(1.1);}}
+@keyframes tv3sfly5{0%{transform:translate(40vw,108vh) rotate(0deg);}100%{transform:translate(60vw,-15vh) rotate(900deg);}}
+@keyframes tv3sfly6{0%{transform:translate(-15vw,40vh) rotate(0deg) scale(0.9);}100%{transform:translate(115vw,55vh) rotate(720deg) scale(0.9);}}
+@keyframes tv3sfly7{0%{transform:translate(50vw,-15vh) rotate(0deg) scale(0.85);}100%{transform:translate(20vw,108vh) rotate(-720deg) scale(0.85);}}
+@keyframes tv3sfly8{0%{transform:translate(-15vw,55vh) rotate(0deg) scale(1.05);}100%{transform:translate(115vw,30vh) rotate(540deg) scale(1.05);}}
+.tv3-scope .soju{position:absolute;width:60px;height:160px;z-index:6;pointer-events:none;filter:drop-shadow(4px 6px 0 #000);}
+.tv3-scope .soju.fly1{animation:tv3fly1 5s linear infinite;}
+.tv3-scope .soju.fly2{animation:tv3fly2 6s linear infinite;animation-delay:-1.5s;}
+.tv3-scope .soju.fly3{animation:tv3fly3 7s linear infinite;animation-delay:-3s;}
+.tv3-scope .soju.fly4{animation:tv3fly4 5.5s linear infinite;animation-delay:-2s;}
+.tv3-scope .soju.fly5{animation:tv3fly5 6.5s linear infinite;animation-delay:-4s;}
+.tv3-scope .soju.fly6{animation:tv3fly6 4.8s linear infinite;animation-delay:-1s;}
+.tv3-scope .soju.fly7{animation:tv3fly7 7.5s linear infinite;animation-delay:-3.5s;}
+.tv3-scope .soju.fly8{animation:tv3fly8 5.8s linear infinite;animation-delay:-0.5s;}
+@keyframes tv3fly1{0%{transform:translate(-15vw,90vh) rotate(0deg);}100%{transform:translate(110vw,-20vh) rotate(720deg);}}
+@keyframes tv3fly2{0%{transform:translate(115vw,80vh) rotate(0deg);}100%{transform:translate(-20vw,-15vh) rotate(-540deg);}}
+@keyframes tv3fly3{0%{transform:translate(-10vw,-20vh) rotate(0deg);}100%{transform:translate(108vw,95vh) rotate(900deg);}}
+@keyframes tv3fly4{0%{transform:translate(50vw,110vh) rotate(0deg) scale(0.7);}100%{transform:translate(50vw,-25vh) rotate(720deg) scale(0.7);}}
+@keyframes tv3fly5{0%{transform:translate(-15vw,40vh) rotate(0deg) scale(1.2);}100%{transform:translate(115vw,55vh) rotate(540deg) scale(1.2);}}
+@keyframes tv3fly6{0%{transform:translate(20vw,-20vh) rotate(0deg) scale(0.85);}100%{transform:translate(85vw,110vh) rotate(-720deg) scale(0.85);}}
+@keyframes tv3fly7{0%{transform:translate(110vw,30vh) rotate(0deg);}100%{transform:translate(-20vw,75vh) rotate(-900deg);}}
+@keyframes tv3fly8{0%{transform:translate(70vw,115vh) rotate(0deg) scale(0.9);}100%{transform:translate(15vw,-25vh) rotate(540deg) scale(0.9);}}
+.tv3-scope .bubble{position:absolute;width:clamp(110px,16vmin,220px);z-index:5;animation:tv3floaty 2.4s ease-in-out infinite;pointer-events:none;}
+.tv3-scope .bubble svg{width:100%;height:auto;display:block;filter:drop-shadow(5px 7px 0 #000);}
+.tv3-scope .bubble-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-5deg);font-family:'Luckiest Guy',cursive;font-size:clamp(15px,2.2vmin,34px);text-align:center;line-height:1;letter-spacing:1px;white-space:nowrap;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;}
+@keyframes tv3floaty{0%,100%{transform:translateY(0) rotate(-6deg);}50%{transform:translateY(-14px) rotate(6deg);}}
+.tv3-scope .bubble.b1{top:11%;left:11%;animation-delay:0s;}
+.tv3-scope .bubble.b2{top:13%;right:11%;animation-delay:0.4s;}
+.tv3-scope .bubble.b3{bottom:16%;left:12%;animation-delay:0.8s;}
+.tv3-scope .bubble.b4{bottom:13%;right:11%;animation-delay:0.2s;}
+.tv3-scope .crazy-banner{position:relative;transform:rotate(-3deg);font-family:'Luckiest Guy',cursive;font-size:clamp(28px,4vmin,64px);color:#FFF;background:#E63946;padding:14px 38px;border:5px solid #000;border-radius:14px;text-shadow:-3px -3px 0 #000,3px -3px 0 #000,-3px 3px 0 #000,3px 3px 0 #000,-3px 0 0 #000,3px 0 0 #000,0 -3px 0 #000,0 3px 0 #000;box-shadow:8px 8px 0 #000;letter-spacing:3px;z-index:20;text-align:center;line-height:1.1;animation:tv3wiggle 1.2s ease-in-out infinite alternate;}
+.tv3-scope .crazy-banner .line2{display:block;font-size:0.55em;color:#FFEB3B;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,-2px 0 0 #000,2px 0 0 #000,0 -2px 0 #000,0 2px 0 #000;margin-top:8px;}
+@keyframes tv3wiggle{from{transform:rotate(-4deg) scale(0.97);}to{transform:rotate(-1deg) scale(1.03);}}
+.tv3-scope .real-stamp{position:absolute;top:18%;right:5%;z-index:20;width:clamp(110px,13vmin,180px);height:clamp(110px,13vmin,180px);display:flex;align-items:center;justify-content:center;border:5px solid #000;border-radius:50%;background:#FFEB3B;transform:rotate(15deg);box-shadow:5px 5px 0 #000;animation:tv3stamp 0.9s ease-in-out infinite alternate;font-family:'Luckiest Guy',cursive;font-size:clamp(20px,2.6vmin,40px);color:#E63946;text-align:center;line-height:1;letter-spacing:2px;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,-2px 0 0 #000,2px 0 0 #000,0 -2px 0 #000,0 2px 0 #000;}
+@keyframes tv3stamp{from{transform:rotate(12deg) scale(0.95);}to{transform:rotate(18deg) scale(1.08);}}
+
 </style>
 </head>
 <body>
 <div class="slideshow" id="ss">''' + "".join(slides) + '''</div>
-<div id="promo-overlay" style="opacity:0;visibility:hidden;transition:opacity 1.2s ease;position:fixed;inset:0;z-index:9999;background:#000"><iframe id="promo-iframe" src="https://681014la-wq.github.io/joons-tv-3/" style="width:100%;height:100%;border:0;display:block"></iframe></div>
-<script>(function(){const ov=document.getElementById('promo-overlay');let on=false,cnt=0;function p(){if(on)return;on=true;ov.style.visibility='visible';ov.style.opacity='1';setTimeout(()=>{ov.style.opacity='0';setTimeout(()=>{ov.style.visibility='hidden';on=false;},400);},24000);}const obs=new MutationObserver(ms=>{ms.forEach(m=>{const el=m.target;const wasActive=m.oldValue&&m.oldValue.includes('active');const isActive=el.classList.contains('active');if(!wasActive&&isActive&&el.classList.contains('slide')&&!on){cnt++;if(cnt%5===0)p();}});});document.querySelectorAll('.slide').forEach(s=>obs.observe(s,{attributes:true,attributeFilter:['class'],attributeOldValue:true}));})();</script>
 <script>
 const slides=document.querySelectorAll('.slide');
 let cur=0, t0=Date.now(), paused=false, videoPlaying=false;
@@ -693,6 +848,90 @@ show=function(i){
 document.querySelectorAll('.slide-qr .qr-tagline').forEach(el=>el.textContent=nextQRTagline());
 
 tick();
+</script>
+<script>
+/* ==================== TV3 PROMO SLIDES JS (scoped to .tv3-scope) ==================== */
+(function tv3Promo(){
+  const SUSHI=[
+    `<circle cx="50" cy="50" r="46" fill="#2c2c2c" stroke="#000" stroke-width="4"/><circle cx="50" cy="50" r="38" fill="#FFF8E1" stroke="#000" stroke-width="3"/><circle cx="50" cy="50" r="20" fill="#FF7043" stroke="#000" stroke-width="3"/><path d="M40,45 Q50,40 60,45 Q60,55 50,60 Q40,55 40,45 Z" fill="none" stroke="#FFAB91" stroke-width="2"/><ellipse cx="36" cy="40" rx="3" ry="2.2" fill="#FFF" stroke="#000" stroke-width="1.5"/><ellipse cx="64" cy="60" rx="3" ry="2.2" fill="#FFF" stroke="#000" stroke-width="1.5"/>`,
+    `<circle cx="50" cy="50" r="46" fill="#2c2c2c" stroke="#000" stroke-width="4"/><circle cx="50" cy="50" r="38" fill="#FFF8E1" stroke="#000" stroke-width="3"/><circle cx="50" cy="50" r="20" fill="#D32F2F" stroke="#000" stroke-width="3"/><path d="M40,50 Q50,45 60,50 Q50,55 40,50 Z" fill="#B71C1C"/><ellipse cx="64" cy="40" rx="3" ry="2.2" fill="#FFF" stroke="#000" stroke-width="1.5"/><ellipse cx="36" cy="60" rx="3" ry="2.2" fill="#FFF" stroke="#000" stroke-width="1.5"/>`,
+    `<circle cx="50" cy="50" r="46" fill="#FFF8E1" stroke="#000" stroke-width="4"/><circle cx="50" cy="50" r="20" fill="#8BC34A" stroke="#000" stroke-width="3"/><path d="M42,48 L50,42 L58,48 L58,55 L50,58 L42,55 Z" fill="#FF7043" stroke="#000" stroke-width="2"/><circle cx="35" cy="35" r="2" fill="#FF8A65"/><circle cx="65" cy="65" r="2" fill="#FF8A65"/><circle cx="65" cy="35" r="2" fill="#FF8A65"/><circle cx="35" cy="65" r="2" fill="#FF8A65"/><ellipse cx="30" cy="50" rx="2.5" ry="2" fill="#FFF" stroke="#000" stroke-width="1.2"/><ellipse cx="70" cy="50" rx="2.5" ry="2" fill="#FFF" stroke="#000" stroke-width="1.2"/>`,
+    `<circle cx="50" cy="50" r="46" fill="#2c2c2c" stroke="#000" stroke-width="4"/><circle cx="50" cy="50" r="38" fill="#FFF8E1" stroke="#000" stroke-width="3"/><circle cx="50" cy="50" r="18" fill="#7CB342" stroke="#000" stroke-width="3"/><circle cx="50" cy="50" r="10" fill="#AED581" stroke="#558B2F" stroke-width="1.5"/><ellipse cx="36" cy="44" rx="3" ry="2.2" fill="#FFF" stroke="#000" stroke-width="1.5"/><ellipse cx="64" cy="56" rx="3" ry="2.2" fill="#FFF" stroke="#000" stroke-width="1.5"/>`,
+    `<circle cx="50" cy="50" r="46" fill="#2c2c2c" stroke="#000" stroke-width="4"/><circle cx="50" cy="50" r="38" fill="#FFF8E1" stroke="#000" stroke-width="3"/><circle cx="50" cy="50" r="20" fill="#6D4C41" stroke="#000" stroke-width="3"/><path d="M38,50 Q50,42 62,50 Q50,58 38,50 Z" fill="#8D6E63"/><line x1="40" y1="50" x2="60" y2="50" stroke="#3E2723" stroke-width="1.5"/><ellipse cx="36" cy="62" rx="3" ry="2.2" fill="#FFF" stroke="#000" stroke-width="1.5"/><ellipse cx="64" cy="38" rx="3" ry="2.2" fill="#FFF" stroke="#000" stroke-width="1.5"/>`
+  ];
+  const FACE=`<g class="face"><ellipse cx="40" cy="68" rx="3.5" ry="2.5" fill="#FFB7C5" opacity="0.8"/><ellipse cx="60" cy="68" rx="3.5" ry="2.5" fill="#FFB7C5" opacity="0.8"/><circle cx="42" cy="62" r="2" fill="#000"/><circle cx="58" cy="62" r="2" fill="#000"/><circle cx="42.7" cy="61.3" r="0.7" fill="#FFF"/><circle cx="58.7" cy="61.3" r="0.7" fill="#FFF"/><path d="M46,68 Q50,72 54,68" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round"/></g>`;
+  document.querySelectorAll('.tv3-scope').forEach(scope=>{
+    if(scope.classList.contains('tv3-logo'))return;
+    for(let i=1;i<=10;i++){
+      const el=document.createElement('div');
+      el.className=`sushi-roll sf${i}`;
+      const s=SUSHI[Math.floor(Math.random()*SUSHI.length)];
+      el.innerHTML=`<svg viewBox="0 0 100 100">${s}${FACE}</svg>`;
+      scope.appendChild(el);
+    }
+  });
+  const BUBBLES=[
+    {svg:'<polygon fill="#E63946" stroke="#000" stroke-width="6" stroke-linejoin="round" points="100,5 122,38 158,22 152,60 192,68 162,92 195,128 152,124 162,158 118,140 100,158 82,142 38,158 50,124 5,128 38,92 8,68 48,60 42,22 78,38"/>',tc:'#FFF',words:['WHAM!','BAM!','POW!']},
+    {svg:'<polygon fill="#FFEB3B" stroke="#000" stroke-width="6" stroke-linejoin="round" points="100,5 122,38 158,22 152,60 192,68 162,92 195,128 152,124 162,158 118,140 100,158 82,142 38,158 50,124 5,128 38,92 8,68 48,60 42,22 78,38"/>',tc:'#1D9BF0',words:['SMASH!','BANG!','POP!']},
+    {svg:'<path fill="#FFF" stroke="#000" stroke-width="6" stroke-linejoin="round" d="M50,40 Q25,40 30,65 Q5,75 30,95 Q15,125 55,125 Q65,150 100,140 Q120,155 145,140 Q185,150 190,120 Q215,115 200,90 Q220,70 195,55 Q205,28 170,30 Q155,12 120,28 Q100,8 80,28 Q55,18 50,40 Z"/>',tc:'#FFEB3B',words:['ZZZZ...','HMMM...']},
+    {svg:'<path fill="#FFF" stroke="#000" stroke-width="6" stroke-linejoin="round" d="M40,40 Q20,40 25,65 Q5,75 25,95 Q15,120 50,120 Q60,145 90,135 Q105,150 125,135 Q160,150 165,120 Q190,115 180,90 Q200,75 180,55 Q190,30 160,32 Q145,15 115,28 Q95,10 75,28 Q50,18 40,40 Z"/>',tc:'#FF9800',words:['POOF!','PUFF!','WHOOSH!']},
+    {svg:'<path fill="#2EA84F" stroke="#000" stroke-width="6" stroke-linejoin="round" d="M40,90 Q20,60 50,40 Q70,15 100,30 Q130,15 150,40 Q180,60 160,90 Q190,110 170,135 Q180,160 145,150 Q130,168 100,150 Q70,168 55,150 Q20,160 30,135 Q10,110 40,90 Z"/>',tc:'#FFEB3B',words:['SPLASH!','DRIP!']},
+    {svg:'<path fill="#FF9800" stroke="#000" stroke-width="6" stroke-linejoin="round" d="M30,30 Q15,55 25,80 Q5,100 30,115 Q35,140 65,128 Q80,150 110,135 Q140,148 155,125 Q185,120 175,95 Q195,70 170,55 Q170,25 140,30 Q120,10 95,28 Q65,15 50,32 Q30,30 30,30 Z"/>',tc:'#E63946',words:['OMG!!','WOW!!']}
+  ];
+  function shuffleBubbles(){
+    document.querySelectorAll('.tv3-scope').forEach(slide=>{
+      const cells=slide.querySelectorAll('.bubble');
+      if(!cells.length)return;
+      const pool=[...Array(BUBBLES.length).keys()].sort(()=>Math.random()-0.5).slice(0,cells.length);
+      cells.forEach((cell,i)=>{
+        const b=BUBBLES[pool[i]];
+        const word=b.words[Math.floor(Math.random()*b.words.length)];
+        cell.innerHTML=`<svg viewBox="0 0 200 160">${b.svg}</svg><span class="bubble-text" style="color:${b.tc}">${word}</span>`;
+      });
+    });
+  }
+  const BURST_POOL=[
+    {fill:'#E63946',d:'M150,4 L172,40 L218,18 L210,55 L268,42 L240,75 L296,68 L260,98 L298,128 L235,118 L262,148 L208,128 L188,148 L155,118 L120,148 L92,128 L38,148 L65,118 L2,128 L42,98 L4,68 L60,75 L32,42 L90,55 L82,18 L128,40 Z'},
+    {fill:'#FFEB3B',d:'M150,2 L168,32 L195,8 L195,40 L240,18 L228,50 L268,32 L250,68 L298,55 L268,85 L296,118 L255,108 L278,142 L228,122 L222,148 L188,128 L160,148 L150,118 L140,148 L112,128 L78,148 L72,122 L22,142 L45,108 L4,118 L32,85 L2,55 L50,68 L32,32 L72,50 L60,18 L105,40 L105,8 L132,32 Z'},
+    {fill:'#2EA84F',d:'M40,75 Q15,30 60,30 Q80,8 110,28 Q140,8 170,28 Q200,8 240,30 Q260,15 270,35 Q290,45 280,75 Q295,95 285,125 Q288,142 250,140 Q230,155 200,135 Q170,148 140,135 Q100,148 80,135 Q40,142 30,125 Q8,100 25,80 Q8,60 40,75 Z'},
+    {fill:'#1D9BF0',d:'M150,2 L168,32 L195,8 L195,40 L240,18 L228,50 L268,32 L250,68 L298,55 L268,85 L296,118 L255,108 L278,142 L228,122 L222,148 L188,128 L160,148 L150,118 L140,148 L112,128 L78,148 L72,122 L22,142 L45,108 L4,118 L32,85 L2,55 L50,68 L32,32 L72,50 L60,18 L105,40 L105,8 L132,32 Z'}
+  ];
+  const BURST_MAP={'tv3-1':0,'tv3-2':2,'tv3-3':1,'tv3-4':0};
+  function shuffleBurst(){
+    document.querySelectorAll('.tv3-scope').forEach(slide=>{
+      const svg=slide.querySelector('.burst-svg');
+      if(!svg)return;
+      let idx=0;
+      Object.keys(BURST_MAP).forEach(cls=>{if(slide.classList.contains(cls))idx=BURST_MAP[cls];});
+      const b=BURST_POOL[idx];
+      svg.innerHTML=`<path fill="${b.fill}" stroke="#000" stroke-width="6" stroke-linejoin="round" d="${b.d}"/>`;
+    });
+  }
+  const PHRASES=[
+    ["BOSS GONE CRAZY!","WHAT IS THIS PRICE?!"],
+    ["FOR REAL?!","IS THIS PRICE REAL?"],
+    ["CRAZY!!","CRAZY CRAZY!!"],
+    ["BOSS RAN AWAY!","SAVE WHILE HE'S GONE!"],
+    ["HQ DOESN'T KNOW!","OUR LITTLE SECRET!"],
+    ["REGULARS ONLY KNEW!","THE SECRET PRICE!"],
+    ["BUY ONCE!","YOU'LL COME BACK!"],
+    ["IS THIS PRICE REAL?","SERIOUSLY?!"]
+  ];
+  const STAMPS=["FOR<br>REAL?!","NO<br>WAY!","WOW!!","CRAZY!","HOT<br>DEAL!","ONLY<br>NOW!","JUST<br>DO IT!","WHAT?!"];
+  let pIdx=0;
+  function rotatePhrase(){
+    const banners=document.querySelectorAll('.tv3-scope .crazy-banner');
+    const stamps=document.querySelectorAll('.tv3-scope .real-stamp');
+    const [a,b]=PHRASES[pIdx%PHRASES.length];
+    banners.forEach(el=>{el.innerHTML=`${a}<span class="line2">${b}</span>`;});
+    stamps.forEach(el=>{el.innerHTML=STAMPS[pIdx%STAMPS.length];});
+    pIdx++;
+  }
+  shuffleBubbles();
+  shuffleBurst();
+  rotatePhrase();
+  setInterval(rotatePhrase,4500);
+})();
 </script>
 </body>
 </html>'''
