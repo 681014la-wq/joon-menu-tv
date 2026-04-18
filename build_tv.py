@@ -451,6 +451,7 @@ def build():
                 pos = 2 + gap * (idx + 1) + idx
                 slides.insert(pos, vs)
 
+
     html = '''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -553,6 +554,8 @@ body{width:100vw;height:100vh;overflow:hidden;background:#060609;color:#F0EDE6;f
 </head>
 <body>
 <div class="slideshow" id="ss">''' + "".join(slides) + '''</div>
+<div id="promo-overlay" style="opacity:0;visibility:hidden;transition:opacity .4s ease;position:fixed;inset:0;z-index:9999;background:#000"><iframe id="promo-iframe" src="https://681014la-wq.github.io/joons-tv-3/" style="width:100%;height:100%;border:0;display:block"></iframe></div>
+<script>(function(){const ov=document.getElementById('promo-overlay');let on=false,cnt=0;function p(){if(on)return;on=true;ov.style.visibility='visible';ov.style.opacity='1';setTimeout(()=>{ov.style.opacity='0';setTimeout(()=>{ov.style.visibility='hidden';on=false;},400);},24000);}const obs=new MutationObserver(ms=>{ms.forEach(m=>{const el=m.target;const wasActive=m.oldValue&&m.oldValue.includes('active');const isActive=el.classList.contains('active');if(!wasActive&&isActive&&el.classList.contains('slide')&&!on){cnt++;if(cnt%5===0)p();}});});document.querySelectorAll('.slide').forEach(s=>obs.observe(s,{attributes:true,attributeFilter:['class'],attributeOldValue:true}));})();</script>
 <script>
 const slides=document.querySelectorAll('.slide');
 let cur=0, t0=Date.now(), paused=false, videoPlaying=false;
