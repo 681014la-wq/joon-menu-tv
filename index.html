@@ -255,7 +255,5 @@ document.querySelectorAll('.s-qr .qr-tagline').forEach(el=>el.textContent=nextQR
 
 tick();
 </script>
-<div id="promo-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#000"><iframe id="promo-iframe" src="" style="width:100%;height:100%;border:0;display:block"></iframe></div>
-<script>(function(){const ov=document.getElementById('promo-overlay'),ifr=document.getElementById('promo-iframe');let on=false,cnt=0;function p(){if(on)return;on=true;ifr.src='https://681014la-wq.github.io/joons-tv-3/';ov.style.display='block';setTimeout(()=>{ov.style.display='none';ifr.src='';on=false;},9000);}const obs=new MutationObserver(ms=>{ms.forEach(m=>{const el=m.target;const wasActive=m.oldValue&&m.oldValue.includes('active');const isActive=el.classList.contains('active');if(!wasActive&&isActive&&el.classList.contains('slide')){cnt++;if(cnt%5===0)p();}});});document.querySelectorAll('.slide').forEach(s=>obs.observe(s,{attributes:true,attributeFilter:['class'],attributeOldValue:true}));})();</script>
 </body>
 </html>
