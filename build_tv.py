@@ -562,6 +562,14 @@ function cleanupVideo(slide){
   if(v){v.pause();v.removeAttribute('src');v.load();v.remove();}
 }
 
+function prefetchNextVideo(){
+  for(let i=1;i<slides.length;i++){
+    const next=slides[(cur+i)%slides.length];
+    const vsrc=next.dataset.video;
+    if(vsrc){fetch(vsrc,{cache:'force-cache'}).catch(()=>{});break;}
+  }
+}
+
 function show(i){
   // 이전 비디오 제거 (메모리 해제)
   cleanupVideo(slides[cur]);
@@ -574,13 +582,15 @@ function show(i){
   document.body.style.background=s.dataset.atmos||'#060609';
   t0=Date.now();
 
+  prefetchNextVideo();
+
   // 비디오 슬라이드면 지연 로드 후 재생
   const vsrc=s.dataset.video;
   if(vsrc){
     videoPlaying=true;
     const v=document.createElement('video');
     v.className='vid';
-    v.muted=true;v.playsInline=true;v.autoplay=true;
+    v.muted=true;v.playsInline=true;v.preload='auto';
     v.addEventListener('ended',()=>{cleanupVideo(s);videoPlaying=false;show(cur+1);});
     v.addEventListener('error',()=>{cleanupVideo(s);videoPlaying=false;t0=Date.now();});
     s.appendChild(v);
